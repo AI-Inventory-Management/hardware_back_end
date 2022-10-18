@@ -56,52 +56,52 @@ class DbUploader():
     # =============================== FETCH DATA FROM DB ===============================
 
     def fetch_product_ids(self, products:list)->dict:
-        products_query = self.create_field_equals_or_chain_query("Product.name", products)
-        product_ids_query = "SELECT Product.name, Product.id FROM Product WHERE {q}".format(q = products_query)
+        products_query = self.create_field_equals_or_chain_query("Product.ean", products)
+        product_ids_query = "SELECT Product.ean, Product.id FROM Product WHERE {q}".format(q = products_query)
 
         self.open_db_connection()
         self.db_cursor.execute(product_ids_query)
-        product_ids_result = self.parse_query_result(result_columns=["product_name", "product_id"])
-        product_ids_result = self.two_cols_df_to_dict(product_ids_result, "product_name", "product_id")
+        product_ids_result = self.parse_query_result(result_columns=["product_ean", "product_id"])
+        product_ids_result = self.two_cols_df_to_dict(product_ids_result, "product_ean", "product_id")
         self.close_db_connection()
         return product_ids_result
 
     def fetch_prev_stock(self, store_id):
         self.open_db_connection()
-        fetch_stock_query = """SELECT Product.name, Inventory.stock
+        fetch_stock_query = """SELECT Product.ean, Inventory.stock
         FROM Inventory 
         INNER JOIN Product ON Inventory.id_product=Product.id 
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_stock_query)
-        result = self.parse_query_result(result_columns=["product_name", "product_stock"])
-        result = self.two_cols_df_to_dict(result, "product_name", "product_stock")
+        result = self.parse_query_result(result_columns=["product_ean", "product_stock"])
+        result = self.two_cols_df_to_dict(result, "product_ean", "product_stock")
         self.close_db_connection()
         return result
     
     def fetch_min_stock(self, store_id):
         self.open_db_connection()
-        fetch_min_stock_query = """SELECT Product.name, Inventory.min_stock
+        fetch_min_stock_query = """SELECT Product.ean, Inventory.min_stock
         FROM Inventory
         INNER JOIN Product ON Inventory.id_product = Product.id
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_min_stock_query)
-        result = self.parse_query_result(result_columns=["product_name", "product_min_stock"])
-        result = self.two_cols_df_to_dict(result, "product_name", "product_min_stock")
+        result = self.parse_query_result(result_columns=["product_ean", "product_min_stock"])
+        result = self.two_cols_df_to_dict(result, "product_ean", "product_min_stock")
         self.close_db_connection()
         return result
         
     def fetch_max_stock(self, store_id):
         self.open_db_connection()
-        fetch_max_stock_query = """SELECT Product.name, Inventory.max_stock
+        fetch_max_stock_query = """SELECT Product.ean, Inventory.max_stock
         FROM Inventory
         INNER JOIN Product ON Inventory.id_product = Product.id
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_max_stock_query)
-        result = self.parse_query_result(result_columns=["product_name", "product_min_stock"])
-        result = self.two_cols_df_to_dict(result, "product_name", "product_min_stock")
+        result = self.parse_query_result(result_columns=["product_ean", "product_min_stock"])
+        result = self.two_cols_df_to_dict(result, "product_ean", "product_min_stock")
         self.close_db_connection()
         return result
         
