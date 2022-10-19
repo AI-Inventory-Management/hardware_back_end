@@ -57,7 +57,7 @@ class DbUploader():
 
     def fetch_product_ids(self, products:list)->dict:
         products_query = self.create_field_equals_or_chain_query("Product.ean", products)
-        product_ids_query = "SELECT Product.ean, Product.id FROM Product WHERE {q}".format(q = products_query)
+        product_ids_query = "SELECT Product.ean, Product.id_product FROM Product WHERE {q}".format(q = products_query)
 
         self.open_db_connection()
         self.db_cursor.execute(product_ids_query)
@@ -70,7 +70,7 @@ class DbUploader():
         self.open_db_connection()
         fetch_stock_query = """SELECT Product.ean, Inventory.stock
         FROM Inventory 
-        INNER JOIN Product ON Inventory.id_product=Product.id 
+        INNER JOIN Product ON Inventory.id_product=Product.id_product 
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_stock_query)
@@ -83,7 +83,7 @@ class DbUploader():
         self.open_db_connection()
         fetch_min_stock_query = """SELECT Product.ean, Inventory.min_stock
         FROM Inventory
-        INNER JOIN Product ON Inventory.id_product = Product.id
+        INNER JOIN Product ON Inventory.id_product = Product.id_product
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_min_stock_query)
@@ -96,7 +96,7 @@ class DbUploader():
         self.open_db_connection()
         fetch_max_stock_query = """SELECT Product.ean, Inventory.max_stock
         FROM Inventory
-        INNER JOIN Product ON Inventory.id_product = Product.id
+        INNER JOIN Product ON Inventory.id_product = Product.id_product
         WHERE Inventory.id_store = '{store_id}'
         """.format(store_id = store_id)
         self.db_cursor.execute(fetch_max_stock_query)
@@ -107,7 +107,8 @@ class DbUploader():
         
     
     def fetch_store_id(self, store_name, store_status, store_latitude, store_longitude, store_state, store_municipality, store_zip_code, store_address):        
-        store_id_query = """SELECT Store.name, Store.id 
+        # TODO: handle exception if this happens for a store with double register
+        store_id_query = """SELECT Store.name, Store.id_store 
             FROM Store 
             WHERE (Store.name='{store_name}' AND
             Store.status={store_status} AND
@@ -184,7 +185,7 @@ class DbUploader():
         self.close_db_connection()
 
     def update_store_status(self, store_id, status):
-        status_update_query = "UPDATE Store SET Store.status = {status} WHERE Store.id = {store_id}".format(status = status, store_id = store_id)
+        status_update_query = "UPDATE Store SET Store.status = {status} WHERE Store.id_store = {store_id}".format(status = status, store_id = store_id)
         self.open_db_connection()
         self.db_cursor.execute(status_update_query)
         self.db_connection.commit()
@@ -195,8 +196,10 @@ class DbUploader():
         norm = []
         
         current_products = list(stocks.keys())
+        current_products = [i for i in current_products if i not in ["0"]] # we delete empty spaces from curent products
         for label in current_products:
-            norm.append((stocks[label] - mins_stock[label])/(maxs_stock[label] - mins_stock[label]))
+            if not (maxs_stock[label] - mins_stock[label]) == 0:
+                norm.append((stocks[label] - mins_stock[label])/(maxs_stock[label] - mins_stock[label]))
             
         mean = sum(norm) / len(norm)
         
@@ -209,13 +212,14 @@ class DbUploader():
         else:
             status = 3
         
-        self.update_store_status(id_store = store_id, status = status)
+        self.update_store_status(store_id = store_id, status = status)
         
     def handle_cahanges_on_store_products(self, prev:dict, curr:dict, id_store:str):
         # check if new products exist on the new input and if
         # they do we create a new inventory table for each with defaul max stock 
         # and min stock values
         products_only_in_curr = [ product for product in curr.keys() if product not in prev.keys() ]
+        products_only_in_curr = [i for i in products_only_in_curr if i not in ["0"]] # we delete empty spaces from curent products
         if len(products_only_in_curr) == 0:
             return
         # if there are products in current stock that are not in prev stock we fetch the product ids for each        
@@ -230,6 +234,7 @@ class DbUploader():
     
     def handle_changes_on_store_stock(self, prev, curr, id_store:str, timestamp:str):
         current_products = list(curr.keys())
+        current_products = [i for i in current_products if i not in ["0"]] # we delete empty spaces from curent products 
         product_ids = self.fetch_product_ids(current_products)
         
         for product in current_products:
@@ -265,10 +270,13 @@ class DbUploader():
         store_products = list(message["store_curr_stock"].keys())
         store_products_ids = self.fetch_product_ids(store_products)
         store_id = self.fetch_store_id(message["store_name"], 1, message["store_latitude"], message["store_longitude"], message["store_state"], message["store_municipality"], message["store_zip_code"], message["store_address"])
+        store_id = store_id[message["store_name"]]
+        print("fetch store_id result is:")
+        print(store_products_ids)
         print("fetch store id result is:")
         print(store_id)
         for product in store_products:
-            self.register_new_inventory(store_products_ids[product], store_id[message["store_name"]], message["store_curr_stock"][product], message["store_min_stocks"][product], message["store_max_stocks"][product])
+            self.register_new_inventory(store_products_ids[product], store_id, message["store_curr_stock"][product], message["store_min_stocks"][product], message["store_max_stocks"][product])
         return store_id
 
 app = Flask(__name__)
@@ -293,12 +301,12 @@ def constant_messages():
 @app.route('/initaialization_messages', methods=['GET', 'POST'])
 def initialization_messages():
     content = request.json    
-    uploader.handle_initialization_message(content)
+    store_id = uploader.handle_initialization_message(content)
     print("========================================================")
     print("printing data fetched on server:")
     print(content)
     print("")
-    return jsonify({})
+    return jsonify({"store_id":store_id})
 
 if __name__ == '__main__':
 	app.run(host = '0.0.0.0',port = 7000, debug = True)
