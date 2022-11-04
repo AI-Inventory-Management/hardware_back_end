@@ -9,10 +9,13 @@ from numpy import product
 import handler_keys
 import pandas as pd
 
+from Decrypter import Decrypter
+
 class DbUploader():
     def __init__(self) -> None:
         self.db_connection = None
         self.db_cursor = None
+        self.decrypter = Decrypter()
         
     def close_db_connection(self):
         self.db_cursor.close()
@@ -23,7 +26,10 @@ class DbUploader():
         self.db_cursor = self.db_connection.cursor()
 
     # =============================== HELPERS ===============================
-
+    
+    def decypher(self, message):
+        return self.decrpyter.decrypt(message)
+    
     def parse_query_result(self, result_columns):
         df= pd.DataFrame(columns = result_columns)
         for register in self.db_cursor:
@@ -257,6 +263,8 @@ class DbUploader():
         
 
     def handle_constant_message(self, message):
+        message = self.decypher(message)
+        
         prev_stock = self.fetch_prev_stock(store_id=message['store_id'])
         self.handle_cahanges_on_store_products(prev_stock, message['content_count'], message['store_id'])
         prev_stock = self.fetch_prev_stock(store_id=message['store_id'])
@@ -266,6 +274,8 @@ class DbUploader():
         self.handle_change_on_status(store_id = message["store_id"], mins_stock = mins, maxs_stock = maxs, stocks = message["content_count"])
         
     def handle_initialization_message(self, message):
+        message = self.decypher(message)
+        
         self.register_new_store(message["store_name"], 1, message["store_latitude"], message["store_longitude"], message["store_state"], message["store_municipality"], message["store_zip_code"], message["store_address"])
         store_products = list(message["store_curr_stock"].keys())
         store_products_ids = self.fetch_product_ids(store_products)
