@@ -28,7 +28,7 @@ class DbUploader():
     # =============================== HELPERS ===============================
     
     def decypher(self, message):
-        return self.decrpyter.decrypt(message)
+        return self.decrypter.decrypt(message)
     
     def parse_query_result(self, result_columns):
         df= pd.DataFrame(columns = result_columns)
@@ -262,9 +262,9 @@ class DbUploader():
                 self.update_inventory(store_id=id_store, product_id=product_id, new_stock=product_stock) 
         
 
-    def handle_constant_message(self, message):
+    def handle_constant_message(self, message): 
         message = self.decypher(message)
-        
+        print(message)
         prev_stock = self.fetch_prev_stock(store_id=message['store_id'])
         self.handle_cahanges_on_store_products(prev_stock, message['content_count'], message['store_id'])
         prev_stock = self.fetch_prev_stock(store_id=message['store_id'])
@@ -275,7 +275,7 @@ class DbUploader():
         
     def handle_initialization_message(self, message):
         message = self.decypher(message)
-        
+        print(message)
         self.register_new_store(message["store_name"], 1, message["store_latitude"], message["store_longitude"], message["store_state"], message["store_municipality"], message["store_zip_code"], message["store_address"])
         store_products = list(message["store_curr_stock"].keys())
         store_products_ids = self.fetch_product_ids(store_products)
@@ -299,7 +299,7 @@ def home():
 	return render_template('home_template.html')
 
 @app.route('/constant_messages', methods=['GET', 'POST'])
-def constant_messages():
+def constant_messages():    
     content = request.json    
     uploader.handle_constant_message(content)
     print("========================================================")
@@ -319,4 +319,4 @@ def initialization_messages():
     return jsonify({"store_id":store_id})
 
 if __name__ == '__main__':
-	app.run(host = '0.0.0.0',port = 7000, debug = True)
+	app.run(host = '0.0.0.0', port = 7000, debug = True)
