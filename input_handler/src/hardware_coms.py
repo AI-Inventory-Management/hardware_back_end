@@ -141,7 +141,21 @@ class DbUploader():
         store_ids_result = self.two_cols_df_to_dict(store_ids_result, "store_name", "store_id")
         self.close_db_connection()
         return store_ids_result
-
+    
+    def fetch_store_status(self, store_id):
+        store_status_query = """SELECT Store.name, Store.status FROM Store 
+                                WHERE Store.id = {store_id}""".format(
+                                store_id = store_id)
+        self.open_db_connection()
+        self.db_cursor.execute(store_status_query)
+        store_status = self.parse_query_result(result_columns = ["store_name", 
+                                                                 "store_status"])
+        store_status_result = self.two_cols_df_to_dict(store_status, 
+                                                       "store_name", "store_id")
+        self.close_db_connection()
+        return store_status_result
+        
+        
     # =============================== GENERATE NEW REGISTERS ON DB ===============================
 
     def register_new_store(self, store_name, store_status, store_latitude, store_longitude, store_state, store_municipality, store_zip_code, store_address):        
@@ -180,7 +194,17 @@ class DbUploader():
         self.db_cursor.execute(register_sale_query)
         self.db_connection.commit()
         self.close_db_connection()
-
+    
+    def create_notification(self, id_store, new_status):
+        notification_creation_query = """INSERT INTO Notification(id_store, new_status)
+                                         VALUES({id_store}, {new_status})""".format(
+                                             id_store = id_store, 
+                                             new_status = new_status)
+        self.open_db_connection()
+        self.db_cursor.execute(notification_creation_query)
+        self.db_connection.commit()
+        self.close_db_connection()
+    
     # =============================== UPDATE REGISTERS ON DB ===============================
 
     def update_inventory(self, store_id, product_id, new_stock):
@@ -196,9 +220,12 @@ class DbUploader():
         self.db_cursor.execute(status_update_query)
         self.db_connection.commit()
         self.close_db_connection()
+    
     # =============================== MAIN HANDLERS ===============================
     
     def handle_change_on_status(self, store_id, mins_stock, maxs_stock, stocks):
+        curr_name_status = self.fetch_store_status(store_id)
+        
         norm = []
         
         current_products = list(stocks.keys())
@@ -218,7 +245,10 @@ class DbUploader():
         else:
             status = 3
         
-        self.update_store_status(store_id = store_id, status = status)
+        if curr_name_status["store_status"] != status:
+            self.update_store_status(store_id = store_id, status = status)
+            self.create_notification(id_store = store_id,
+                                     new_status = status)
         
     def handle_cahanges_on_store_products(self, prev:dict, curr:dict, id_store:str):
         # check if new products exist on the new input and if
