@@ -144,16 +144,20 @@ class DbUploader():
     
     def fetch_store_status(self, store_id):
         store_status_query = """SELECT Store.name, Store.status FROM Store 
-                                WHERE Store.id = {store_id}""".format(
+                                WHERE Store.id_store = {store_id}""".format(
                                 store_id = store_id)
         self.open_db_connection()
         self.db_cursor.execute(store_status_query)
         store_status = self.parse_query_result(result_columns = ["store_name", 
                                                                  "store_status"])
         store_status_result = self.two_cols_df_to_dict(store_status, 
-                                                       "store_name", "store_id")
+                                                       "store_name", "store_status")
         self.close_db_connection()
-        return store_status_result
+        try:
+            return list(store_status_result.values())[0]
+        except IndexError:
+            # return a default status
+            return 2
         
         
     # =============================== GENERATE NEW REGISTERS ON DB ===============================
@@ -224,7 +228,7 @@ class DbUploader():
     # =============================== MAIN HANDLERS ===============================
     
     def handle_change_on_status(self, store_id, mins_stock, maxs_stock, stocks):
-        curr_name_status = self.fetch_store_status(store_id)
+        curr_store_status = self.fetch_store_status(store_id)
         
         norm = []
         
@@ -236,19 +240,19 @@ class DbUploader():
             
         mean = sum(norm) / len(norm)
         
-        status = 0
+        new_status = 0
         
         if mean > 0.75:
-            status = 1
+            new_status = 1
         elif mean > 0.25:
-            status = 2
+            new_status = 2
         else:
-            status = 3
+            new_status = 3
         
-        if curr_name_status["store_status"] != status:
-            self.update_store_status(store_id = store_id, status = status)
+        if curr_store_status != new_status:
+            self.update_store_status(store_id = store_id, status = new_status)
             self.create_notification(id_store = store_id,
-                                     new_status = status)
+                                     new_status = new_status)
         
     def handle_cahanges_on_store_products(self, prev:dict, curr:dict, id_store:str):
         # check if new products exist on the new input and if
