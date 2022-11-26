@@ -1,11 +1,5 @@
-from distutils.command.upload import upload
-from math import prod
-from os import curdir
-from pickletools import long1
-from typing import Dict
 from flask import Flask, render_template, request, jsonify
 import mysql.connector
-from numpy import product
 import handler_keys
 import pandas as pd
 
