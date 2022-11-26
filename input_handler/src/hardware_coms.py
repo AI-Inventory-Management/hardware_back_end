@@ -237,10 +237,11 @@ class DbUploader():
         for label in current_products:
             if not (maxs_stock[label] - mins_stock[label]) == 0:
                 norm.append((stocks[label] - mins_stock[label])/(maxs_stock[label] - mins_stock[label]))
-            
-        mean = sum(norm) / len(norm)
         
-        new_status = 0
+        if len(norm) > 0:
+            mean = sum(norm) / len(norm)
+        else:
+            mean = 0
         
         if mean > 0.75:
             new_status = 1
